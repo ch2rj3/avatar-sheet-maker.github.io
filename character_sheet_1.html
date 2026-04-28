@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gogh avatar character sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    /* シート用デフォルト（紙の明度に応じてJSが上書き） */
+    --point: #6b8caf;
+    --point-on: #ffffff;       /* ポイントカラー上の文字色（自動切替） */
+    --paper: #e8ebef;
+    --paper-soft: #dee2e8;
+    --grid-line: rgba(80, 100, 130, 0.10);
+    --grid-line-strong: rgba(80, 100, 130, 0.18);
+    --ink: #1a2230;
+    --ink-soft: #4a5468;
+    --mute: #8390a3;
+    --line: #b8c2d0;
+    --line-soft: #c8d0db;
+    --tape: rgba(220, 230, 245, 0.85);
+    --warning: #b8483a;
+    --sticker-blue: #aabfd8;
+
+    /* 入力パネル専用の固定色（シートのpointと連動しない） */
+    --ui-accent: #6b8caf;
+    --ui-accent-on: #ffffff;
+    --ui-ink: #1a2230;
+    --ui-ink-soft: #4a5468;
+    --ui-mute: #8390a3;
+    --ui-line: #b8c2d0;
+    --ui-line-soft: #c8d0db;
+    --ui-paper-soft: #dee2e8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Zen Kaku Gothic New", "Inter", "Hiragino Sans", sans-serif;
+    background: linear-gradient(180deg, #4a5468 0%, #2e3645 100%);
+    background-attachment: fixed;
+    color: var(--ui-ink);
+    min-height: 100vh;
+    padding: 24px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .app { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--ui-line);
+    border-radius: 4px;
+    padding: 20px;
+    height: fit-content;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  }
+  .panel h1 {
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ui-ink);
+    margin-bottom: 2px;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .panel h1 em { font-style: normal; color: var(--ui-accent); }
+  .panel .sub {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ui-mute);
+    letter-spacing: 0.2em;
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--ui-line);
+    text-transform: uppercase;
+  }
+  .group {
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ui-line-soft);
+  }
+  .group:last-of-type { border-bottom: none; }
+  .group-label {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    color: var(--ui-accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+  }
+  .group-label .label-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .group-label .label-text::before {
+    content: "▸";
+    color: var(--ui-accent);
+  }
+  .toggle-btn {
+    background: transparent;
+    border: 1px solid var(--ui-line);
+    padding: 3px 10px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--ui-ink-soft);
+    cursor: pointer;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+  .toggle-btn.active { background: var(--ui-ink); color: #fff; border-color: var(--ui-ink); }
+  .toggle-btn.hidden-state { color: var(--warning); border-color: var(--warning); }
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ui-mute);
+    margin-bottom: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .field input[type="text"],
+  .field input[type="number"],
+  .field textarea,
+  .field select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    background: var(--ui-paper-soft);
+    color: var(--ui-ink);
+  }
+  .field textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: none;
+    border-color: var(--ui-accent);
+    background: #fff;
+  }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .color-field { display: flex; align-items: center; gap: 8px; }
+  .color-field input[type="color"] {
+    width: 36px; height: 32px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    cursor: pointer;
+    background: none;
+    padding: 2px;
+  }
+  .color-field input[type="text"] {
+    flex: 1;
+    font-family: "DM Mono", monospace;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .image-upload {
+    border: 1px dashed var(--ui-line);
+    background: var(--ui-paper-soft);
+    padding: 14px;
+    text-align: center;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--ui-mute);
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+  .image-upload:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
+  .image-upload input { display: none; }
+  .image-help {
+    font-size: 10px;
+    color: var(--ui-mute);
+    line-height: 1.5;
+    margin-top: 4px;
+    padding: 7px 10px;
+    background: var(--ui-paper-soft);
+    border-left: 2px solid var(--ui-line);
+  }
+  .list-item { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 6px; }
+  .list-item textarea { flex: 1; min-height: 40px; }
+  .list-item .remove-btn,
+  .room-wrap .remove-btn,
+  .trait-wrap .remove-btn,
+  .rel-wrap .remove-btn {
+    background: transparent;
+    border: 1px solid var(--ui-line);
+    width: 28px; height: 28px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--ui-mute);
+    flex-shrink: 0;
+    font-family: inherit;
+  }
+  .list-item .remove-btn:hover,
+  .room-wrap .remove-btn:hover,
+  .trait-wrap .remove-btn:hover,
+  .rel-wrap .remove-btn:hover { background: var(--warning); color: #fff; border-color: var(--warning); }
+  .add-btn {
+    width: 100%;
+    padding: 7px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    border: 1px dashed var(--ui-line);
+    background: transparent;
+    color: var(--ui-ink-soft);
+    cursor: pointer;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+  .add-btn:hover { border-color: var(--ui-accent); color: var(--ui-accent); background: var(--ui-paper-soft); }
+
+  .trait-wrap {
+    background: var(--ui-paper-soft);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid var(--ui-line-soft);
+    border-radius: 2px;
+  }
+  .trait-wrap .trait-head { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .trait-wrap .trait-head input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fff;
+    color: var(--ui-ink);
+  }
+  .trait-wrap .trait-items .list-item textarea { min-height: 32px; font-size: 12px; }
+
+  /* 関係性入力 */
+  .rel-wrap {
+    background: var(--ui-paper-soft);
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--ui-line-soft);
+    border-radius: 2px;
+  }
+  .rel-wrap .rel-row1 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 28px;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .rel-wrap .rel-row1 input {
+    padding: 7px 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: 12px;
+    background: #fff;
+    color: var(--ui-ink);
+    min-width: 0;
+  }
+  .rel-wrap textarea {
+    width: 100%;
+    min-height: 50px;
+    padding: 7px 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: 12px;
+    background: #fff;
+    color: var(--ui-ink);
+    margin-bottom: 6px;
+  }
+  .rel-wrap .rel-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rel-wrap .rel-icon-row .icon-preview {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--ui-line);
+    background: #fff;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .rel-wrap .rel-icon-row .icon-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .rel-wrap .rel-icon-row .icon-upload-btn {
+    flex: 1;
+    padding: 7px;
+    border: 1px dashed var(--ui-line);
+    background: transparent;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ui-mute);
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .rel-wrap .rel-icon-row .icon-upload-btn:hover {
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+  }
+
+  /* ============================================== */
+  /* シート本体                                       */
+  /* ============================================== */
+  .preview-area {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  .sheet {
+    width: 780px;
+    max-width: 100%;
+    background-color: var(--paper);
+    color: var(--ink);
+    position: relative;
+    border-radius: 2px;
+    font-family: "Zen Kaku Gothic New", "Inter", sans-serif;
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.15),
+      0 8px 24px rgba(0, 0, 0, 0.25),
+      0 24px 60px rgba(0, 0, 0, 0.3);
+    overflow: visible;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px);
+    background-size:
+      10px 10px, 10px 10px, 50px 50px, 50px 50px;
+  }
+
+  .sheet::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 80px 30px at 90% 15%, rgba(120,80,60,0.04), transparent),
+      radial-gradient(ellipse 50px 50px at 10% 80%, rgba(80,90,110,0.05), transparent),
+      radial-gradient(circle 5px at 70% 60%, rgba(90,70,60,0.10), transparent);
+    pointer-events: none;
+    border-radius: 2px;
+  }
+
+  .reg-mark {
+    position: absolute;
+    width: 18px; height: 18px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .reg-mark::before, .reg-mark::after {
+    content: "";
+    position: absolute;
+    background: var(--ink);
+  }
+  .reg-mark::before { width: 18px; height: 1px; top: 9px; left: 0; }
+  .reg-mark::after { width: 1px; height: 18px; left: 9px; top: 0; }
+  .reg-mark .ring {
+    position: absolute;
+    inset: 4px;
+    border: 1px solid var(--ink);
+    border-radius: 50%;
+  }
+  .reg-mark.tl { top: 10px; left: 10px; }
+  .reg-mark.tr { top: 10px; right: 10px; }
+  .reg-mark.bl { bottom: 10px; left: 10px; }
+  .reg-mark.br { bottom: 10px; right: 10px; }
+
+  .sheet-header {
+    padding: 32px 36px 24px;
+    position: relative;
+    z-index: 1;
+    border-bottom: 1px solid var(--ink);
+  }
+  .sheet-header::after {
+    content: "";
+    position: absolute;
+    bottom: -4px; left: 36px; right: 36px;
+    height: 1px;
+    background: var(--ink);
+  }
+
+  .deco-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+    gap: 12px;
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  .deco-meta-row .deco-key {
+    color: var(--mute);
+    font-size: 8px;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .deco-meta-row .deco-val { color: var(--ink); font-weight: 500; }
+  .deco-meta-row .deco-val.point { color: var(--point); }
+
+  .classified-label {
+    display: inline-block;
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--warning);
+    border: 1px solid var(--warning);
+    padding: 2px 8px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .classified-label::before { content: "⚠ "; }
+
+  .char-label {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--point);
+    margin-bottom: 6px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .char-label::before { content: "// "; color: var(--mute); }
+  .char-name-en {
+    font-family: "Inter", "Zen Kaku Gothic New", sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .char-name-jp {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    letter-spacing: 0.15em;
+  }
+
+  .masking-tape {
+    position: absolute;
+    top: -8px; right: 36px;
+    width: 160px; height: 22px;
+    background: var(--tape);
+    transform: rotate(2deg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    z-index: 3;
+    background-image:
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,0.4) 0,
+        rgba(255,255,255,0.4) 1px,
+        transparent 1px, transparent 4px);
+    -webkit-mask: linear-gradient(90deg, transparent 0, #000 4px, #000 calc(100% - 4px), transparent 100%);
+            mask: linear-gradient(90deg, transparent 0, #000 4px, #000 calc(100% - 4px), transparent 100%);
+  }
+  .masking-tape::after {
+    content: "PLANET KURODA / OBS. DEPT.";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "DM Mono", monospace;
+    font-size: 8px;
+    color: rgba(0,30,60,0.55);
+    letter-spacing: 0.2em;
+    font-weight: 500;
+  }
+
+  .stamp {
+    position: absolute;
+    top: 90px; right: 28px;
+    transform: rotate(-8deg);
+    border: 2.5px solid var(--warning);
+    color: var(--warning);
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    letter-spacing: 0.2em;
+    z-index: 3;
+    opacity: 0.7;
+    background: rgba(255,255,255,0.05);
+  }
+  .stamp::before { content: "● "; }
+  .stamp::after { content: " ●"; }
+
+  .sheet-body {
+    padding: 28px 36px;
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    gap: 28px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .left-col { display: flex; flex-direction: column; gap: 22px; }
+
+  .main-image-wrap { position: relative; }
+  .main-image-wrap::before {
+    content: "PORTRAIT";
+    position: absolute;
+    top: -16px; left: 0;
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--point);
+    font-weight: 500;
+  }
+  .main-image-wrap::after {
+    content: "";
+    position: absolute;
+    top: -12px; right: 0;
+    width: 30px; height: 1px;
+    background: var(--point);
+  }
+  .main-image {
+    width: 100%;
+    aspect-ratio: 3/4;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .main-image::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-size: 12px 12px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .main-image::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    background-image:
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink)),
+      linear-gradient(var(--ink), var(--ink));
+    background-position:
+      0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+    background-size:
+      8px 1px, 1px 8px, 8px 1px, 1px 8px,
+      8px 1px, 1px 8px, 8px 1px, 1px 8px;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .main-image img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    position: relative;
+    z-index: 1;
+  }
+  .main-image .placeholder {
+    color: var(--mute);
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .photo-sticker {
+    position: absolute;
+    top: -10px; right: -10px;
+    width: 56px; height: 56px;
+    background: var(--point);
+    color: var(--point-on);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: "DM Mono", monospace;
+    transform: rotate(-12deg);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    z-index: 4;
+    border: 2px dashed rgba(255,255,255,0.5);
+    background-clip: padding-box;
+  }
+  .photo-sticker .top {
+    font-size: 7px; letter-spacing: 0.15em;
+    line-height: 1; opacity: 0.85;
+  }
+  .photo-sticker .num {
+    font-size: 12px; font-weight: 700;
+    line-height: 1.1; letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+
+  .sub-images {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .sub-image {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .sub-image::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: 4px; right: 6px;
+    font-family: "DM Mono", monospace;
+    font-size: 8px;
+    color: var(--mute);
+    letter-spacing: 0.15em;
+    background: rgba(255,255,255,0.85);
+    padding: 1px 4px;
+  }
+  .sub-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sub-image .placeholder {
+    color: var(--mute);
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+  }
+
+  .profile-block {
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--line);
+    position: relative;
+  }
+  .profile-label {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--point);
+    margin-bottom: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dotted var(--line);
+  }
+  .profile-label::before { content: "▸"; font-size: 10px; }
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 8px 14px;
+    font-size: 12px;
+  }
+  .profile-grid dt {
+    color: var(--mute);
+    font-size: 11px;
+    padding-top: 3px;
+    font-weight: 500;
+  }
+  .profile-grid dd {
+    font-weight: 500;
+    color: var(--ink);
+    border-bottom: 1px dotted var(--line);
+    padding-bottom: 4px;
+  }
+
+  .room-block {
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--line);
+    position: relative;
+  }
+  .room-item {
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--line);
+  }
+  .room-item:first-child { padding-top: 4px; }
+  .room-item:last-child { border-bottom: none; padding-bottom: 0;}
+  .room-name {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .room-id {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ink);
+    letter-spacing: 0.1em;
+    background: var(--sticker-blue);
+    padding: 1px 8px;
+    display: inline-block;
+    margin-bottom: 4px;
+    font-weight: 500;
+    border-radius: 1px;
+  }
+  .room-id::before { content: "ID. "; color: var(--ink-soft); }
+  .room-note {
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+
+  .right-col { display: flex; flex-direction: column; gap: 28px; }
+  .section { position: relative; }
+  .section-header {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--ink);
+    position: relative;
+    background: rgba(255,255,255,0.3);
+    padding-right: 8px;
+  }
+  .section-header::before {
+    content: "";
+    position: absolute;
+    bottom: -2px; left: 0;
+    width: 50px; height: 2px;
+    background: var(--point);
+  }
+  .section-tag {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--point-on);
+    background: var(--ink);
+    padding: 3px 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 500;
+    border-radius: 2px;
+  }
+  .section-title-jp {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+  .section-title-en {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--mute);
+    margin-left: auto;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+  }
+
+  .right-col .profile-block { background: rgba(255,255,255,0.7); }
+  .right-col .profile-grid { grid-template-columns: 80px 1fr; }
+
+  .section-core {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 26px 16px 14px 16px;
+    margin-bottom: 18px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--point);
+    position: relative;
+  }
+  .section-core::before {
+    content: "FIELD NOTE";
+    position: absolute;
+    left: 14px; top: 8px;
+    font-family: "DM Mono", monospace;
+    font-size: 8px;
+    color: var(--point);
+    letter-spacing: 0.2em;
+    font-weight: 500;
+  }
+
+  .trait-group {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    position: relative;
+  }
+  .trait-group:last-child { margin-bottom: 0; }
+  .trait-group-title {
+    font-family: "DM Mono", "Zen Kaku Gothic New", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--point-on);
+    background: var(--point);
+    padding: 3px 10px;
+    margin-bottom: 8px;
+    letter-spacing: 0.15em;
+    display: inline-block;
+    border-radius: 1px;
+    transform: translateY(-2px);
+  }
+  .trait-items-preview {
+    font-size: 13px;
+    line-height: 1.85;
+    padding-left: 4px;
+    color: var(--ink);
+  }
+  .trait-items-preview .detail-item {
+    padding: 2px 0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .trait-items-preview .detail-item::before {
+    content: "□";
+    color: var(--point);
+    flex-shrink: 0;
+    font-weight: 400;
+    font-size: 11px;
+    padding-top: 3px;
+  }
+
+  /* 関係性アイテム */
+  .relation-item {
+    padding: 12px 14px 12px 16px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--point);
+    border-radius: 2px;
+    position: relative;
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .relation-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    border: 1.5px solid var(--point);
+    background: rgba(255,255,255,0.5);
+    overflow: hidden;
+    flex-shrink: 0;
+    align-self: center;
+    position: relative;
+  }
+  .relation-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .relation-icon .icon-placeholder {
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mute);
+    font-family: "DM Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+  }
+  .relation-body { flex: 1; min-width: 0; }
+  .relation-name {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    flex-wrap: wrap;
+  }
+  .relation-type {
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.6);
+    color: var(--point);
+    border: 1px solid var(--point);
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .relation-memo {
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+
+  .deco-sticker {
+    position: absolute;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .deco-sticker.s-archive {
+    bottom: 50px; right: -16px;
+    background: var(--paper);
+    color: var(--ink);
+    transform: rotate(-8deg);
+    border: 1.5px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  }
+  .deco-sticker.s-archive .top {
+    font-family: "DM Mono", monospace;
+    font-size: 6px;
+    letter-spacing: 0.25em;
+    color: var(--mute);
+  }
+  .deco-sticker.s-archive .center {
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--warning);
+    line-height: 1;
+    margin: 1px 0;
+  }
+  .deco-sticker.s-archive .bottom {
+    font-family: "DM Mono", monospace;
+    font-size: 6px;
+    letter-spacing: 0.2em;
+    color: var(--mute);
+  }
+
+  .corner-sticker {
+    position: absolute;
+    bottom: 80px; left: 24px;
+    width: 80px;
+    background: var(--sticker-blue);
+    color: var(--ink);
+    padding: 5px 8px;
+    transform: rotate(-3deg);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.18);
+    z-index: 3;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .corner-sticker .l1 {
+    font-family: "DM Mono", monospace;
+    font-size: 7px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 1px;
+  }
+  .corner-sticker .l2 {
+    font-family: "Inter", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+  }
+
+  .barcode {
+    position: absolute;
+    bottom: 95px; right: 100px;
+    width: 100px; height: 28px;
+    background-image: repeating-linear-gradient(90deg,
+      var(--ink) 0, var(--ink) 1px, transparent 1px, transparent 3px,
+      var(--ink) 3px, var(--ink) 5px, transparent 5px, transparent 7px,
+      var(--ink) 7px, var(--ink) 8px, transparent 8px, transparent 10px,
+      var(--ink) 10px, var(--ink) 13px, transparent 13px, transparent 15px);
+    z-index: 3;
+    opacity: 0.5;
+  }
+  .barcode::after {
+    content: "KURODA-PTP-██-XXX";
+    position: absolute;
+    bottom: -10px; left: 0; right: 0;
+    text-align: center;
+    font-family: "DM Mono", monospace;
+    font-size: 7px;
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+  }
+
+  .sheet-footer {
+    padding: 14px 36px 10px;
+    border-top: 1px solid var(--ink);
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--mute);
+    letter-spacing: 0.25em;
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,0.3);
+  }
+  .sheet-footer .footer-mark { color: var(--point); }
+
+  .sheet-disclaimer {
+    padding: 10px 36px 18px;
+    background: rgba(255,255,255,0.3);
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+    position: relative;
+    z-index: 1;
+    border-top: 1px dotted var(--line);
+    text-align: center;
+  }
+  .sheet-disclaimer .line { display: block; margin-bottom: 2px; }
+  .sheet-disclaimer .line.warn { color: var(--warning); font-weight: 500; }
+  .sheet-disclaimer .line.credit {
+    color: var(--point);
+    font-weight: 500;
+    margin-top: 4px;
+    letter-spacing: 0.15em;
+  }
+
+  .action-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ui-ink);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 100px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .action-bar button {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 100px;
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .action-bar button:hover { background: rgba(255,255,255,0.1); }
+  .action-bar button.primary {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: #fff;
+  }
+  .action-bar button.primary:hover { filter: brightness(1.1); }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ui-ink);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 2px;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .toast.show { opacity: 1; }
+
+  .room-wrap {
+    background: var(--ui-paper-soft);
+    padding: 8px;
+    margin-bottom: 6px;
+    border: 1px solid var(--ui-line-soft);
+    border-radius: 2px;
+  }
+  .room-wrap input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: 12px;
+    margin-bottom: 4px;
+    background: #fff;
+    color: var(--ui-ink);
+  }
+  .room-wrap input.room-id-input {
+    font-family: "DM Mono", monospace;
+    letter-spacing: 0.1em;
+  }
+  .room-wrap .room-top-row { display: flex; gap: 6px; align-items: flex-start; }
+  .room-wrap .room-top-row input { flex: 1; margin-bottom: 0; }
+
+  /* 暗色紙モード */
+  .dark-paper .main-image,
+  .dark-paper .sub-image,
+  .dark-paper .profile-block,
+  .dark-paper .room-block,
+  .dark-paper .section-core,
+  .dark-paper .trait-group,
+  .dark-paper .relation-item {
+    background: rgba(0,0,0,0.25);
+  }
+  .dark-paper .relation-icon { background: rgba(0,0,0,0.3); }
+  .dark-paper .section-header,
+  .dark-paper .sheet-footer,
+  .dark-paper .sheet-disclaimer {
+    background: rgba(0,0,0,0.20);
+  }
+  .dark-paper .relation-type { background: rgba(0,0,0,0.30); }
+  .dark-paper .sub-image::after {
+    background: rgba(0,0,0,0.55);
+    color: var(--ink);
+  }
+  .dark-paper .deco-sticker.s-archive { background: var(--paper); }
+  .dark-paper .main-image::before {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  }
+
+  /* ============================================== */
+  /* トリミング用モーダル                             */
+  /* ============================================== */
+  .crop-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .crop-modal.show { display: flex; }
+  .crop-modal-inner {
+    background: #fff;
+    border-radius: 6px;
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+  .crop-modal h2 {
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ui-ink);
+    margin-bottom: 4px;
+  }
+  .crop-modal .crop-sub {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ui-mute);
+    margin-bottom: 14px;
+    letter-spacing: 0.1em;
+  }
+  .crop-stage {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: #2a2a2a;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--ui-line);
+    margin-bottom: 14px;
+    user-select: none;
+    touch-action: none;
+  }
+  .crop-stage.shape-rect34 { aspect-ratio: 3/4; }
+  .crop-stage.shape-circle .crop-frame {
+    border-radius: 50%;
+  }
+  .crop-img {
+    position: absolute;
+    transform-origin: 0 0;
+    pointer-events: none;
+    max-width: none;
+  }
+  .crop-frame {
+    position: absolute;
+    inset: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .crop-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .crop-controls label {
+    font-family: "DM Mono", monospace;
+    font-size: 10px;
+    color: var(--ui-mute);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .crop-controls input[type="range"] {
+    width: 100%;
+  }
+  .crop-modal .crop-help {
+    font-size: 11px;
+    color: var(--ui-ink-soft);
+    line-height: 1.5;
+    margin-bottom: 14px;
+    padding: 8px 10px;
+    background: var(--ui-paper-soft);
+    border-left: 2px solid var(--ui-accent);
+  }
+  .crop-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .crop-actions button {
+    padding: 8px 16px;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    border: 1px solid var(--ui-line);
+    background: #fff;
+    color: var(--ui-ink);
+    font-weight: 500;
+  }
+  .crop-actions button.primary {
+    background: var(--ui-accent);
+    color: #fff;
+    border-color: var(--ui-accent);
+  }
+  .crop-actions button:hover { filter: brightness(1.05); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <h1>gogh avatar<br>character <em>sheet</em></h1>
+    <div class="sub">// Observation Record</div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">名前</span></div>
+      <div class="field">
+        <label>名前（メイン）</label>
+        <input type="text" id="nameMain" value="" placeholder="名前">
+      </div>
+      <div class="field">
+        <label>サブ表記（任意）</label>
+        <input type="text" id="nameSub" value="" placeholder="ふりがな・別表記など">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">カラー</span></div>
+      <div class="field">
+        <label>ポイントカラー（見出し・アクセント）</label>
+        <div class="color-field">
+          <input type="color" id="pointColor" value="#6b8caf">
+          <input type="text" id="pointColorText" value="#6B8CAF">
+        </div>
+      </div>
+      <div class="field">
+        <label>シート用紙の色</label>
+        <div class="color-field">
+          <input type="color" id="paperColor" value="#e8ebef">
+          <input type="text" id="paperColorText" value="#E8EBEF">
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">プロフィール</span></div>
+      <div class="row-2">
+        <div class="field"><label>年齢</label><input type="text" id="profAge" value="" placeholder="20"></div>
+        <div class="field"><label>性別</label><input type="text" id="profGender" value="" placeholder="男性"></div>
+      </div>
+      <div class="field"><label>職業</label><input type="text" id="profJob" value="" placeholder="大学生"></div>
+      <div class="field"><label>身長/体型</label><input type="text" id="profBody" value="" placeholder="172cm / 細身"></div>
+      <div class="field">
+        <label>種族（人間・獣人・エルフなど）</label>
+        <input type="text" id="profRace" value="" placeholder="人間">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">画像</span></div>
+      <div class="field">
+        <label>メイン画像（縦長3:4でトリミング）</label>
+        <button class="image-upload" id="mainImageBtn">
+          <span id="mainImageText">クリックしてアップロード</span>
+        </button>
+        <input type="file" accept="image/*" id="mainImageInput" style="display:none;">
+        <div class="image-help">
+          推奨：縦長〜正方形（3:4 / 1:1）<br>
+          目安サイズ：600×800px 以上
+        </div>
+      </div>
+      <div class="field">
+        <label>サブ画像 1（正方形でトリミング）</label>
+        <button class="image-upload" id="subImage1Btn">
+          <span id="subImage1Text">クリックしてアップロード</span>
+        </button>
+        <input type="file" accept="image/*" id="subImage1Input" style="display:none;">
+      </div>
+      <div class="field">
+        <label>サブ画像 2（正方形でトリミング）</label>
+        <button class="image-upload" id="subImage2Btn">
+          <span id="subImage2Text">クリックしてアップロード</span>
+        </button>
+        <input type="file" accept="image/*" id="subImage2Input" style="display:none;">
+        <div class="image-help">
+          サブ画像推奨：正方形（1:1）<br>
+          目安サイズ：400×400px 以上
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">よく行く/自分のROOM</span></div>
+      <div id="roomList"></div>
+      <button class="add-btn" id="addRoom">+ ROOM追加</button>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="label-text">特徴</span></div>
+      <div class="field">
+        <label>ひとことで言うと</label>
+        <input type="text" id="traitCore" value="" placeholder="このキャラを一行で言うと">
+      </div>
+      <div class="field">
+        <label>小カテゴリ（例：好き／嫌い／よくするポーズ）</label>
+        <div id="traitList"></div>
+        <button class="add-btn" id="addTraitGroup">+ カテゴリ追加</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-label">
+        <span class="label-text">他キャラとの関係</span>
+        <button class="toggle-btn" id="relationToggle">ON</button>
+      </div>
+      <div id="relationBody">
+        <div id="relationList"></div>
+        <button class="add-btn" id="addRelation">+ 関係追加</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="preview-area">
+    <div class="sheet" id="sheet">
+      <span class="reg-mark tl"><span class="ring"></span></span>
+      <span class="reg-mark tr"><span class="ring"></span></span>
+      <span class="reg-mark bl"><span class="ring"></span></span>
+      <span class="reg-mark br"><span class="ring"></span></span>
+      <span class="masking-tape"></span>
+      <span class="stamp">OBSERVED</span>
+
+      <div class="sheet-header">
+        <div class="deco-meta-row">
+          <div>
+            <span class="deco-key">CASE No.</span>
+            <span class="deco-val point">No.XXX</span>
+          </div>
+          <div>
+            <span class="deco-key">SAMPLE</span>
+            <span class="deco-val">###</span>
+          </div>
+          <div style="text-align:right;">
+            <span class="deco-key">ARCHIVE</span>
+            <span class="deco-val">PLANET KURODA / ████</span>
+          </div>
+        </div>
+        <div class="classified-label">CLASSIFIED — 取扱注意</div>
+        <div class="char-label">SUBJECT</div>
+        <div class="char-name-en" id="prevNameMain">名前</div>
+        <div class="char-name-jp" id="prevNameSub" style="display:none;"></div>
+      </div>
+
+      <div class="sheet-body">
+        <div class="left-col">
+          <div class="main-image-wrap">
+            <div class="main-image" id="prevMainImage">
+              <span class="placeholder">NO PORTRAIT</span>
+            </div>
+            <div class="photo-sticker">
+              <span class="top">CASE</span>
+              <span class="num">No.XXX</span>
+            </div>
+          </div>
+
+          <div class="sub-images">
+            <div class="sub-image" id="prevSubImage1" data-label="REF.A"><span class="placeholder">SUB 01</span></div>
+            <div class="sub-image" id="prevSubImage2" data-label="REF.B"><span class="placeholder">SUB 02</span></div>
+          </div>
+
+          <div class="room-block">
+            <div class="profile-label">ルーム</div>
+            <div id="prevRoomList"></div>
+          </div>
+        </div>
+
+        <div class="right-col">
+          <div class="profile-block">
+            <div class="profile-label">プロフィール</div>
+            <dl class="profile-grid" id="prevProfile"></dl>
+          </div>
+
+          <div class="section" id="traitSection">
+            <div class="section-header">
+              <span class="section-tag">OBS-α</span>
+              <span class="section-title-jp">特徴</span>
+              <span class="section-title-en">Traits</span>
+            </div>
+            <div class="section-core" id="prevTraitCore"></div>
+            <div id="prevTraitList"></div>
+          </div>
+
+          <div class="section" id="relationSection">
+            <div class="section-header">
+              <span class="section-tag">OBS-β</span>
+              <span class="section-title-jp">他キャラとの関係</span>
+              <span class="section-title-en">Linked</span>
+            </div>
+            <div id="prevRelationList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="barcode"></div>
+
+      <div class="sheet-footer">
+        <span>PLANET KURODA — TOTAL PLANNING ARCHIVE</span>
+        <span class="footer-mark">— FILED —</span>
+        <span>solo edition</span>
+      </div>
+
+      <div class="sheet-disclaimer">
+        <span class="line warn">このキャラクターシートおよびジェネレーターは非公式です。</span>
+        <span class="line warn">This character sheet and generator are unofficial.</span>
+        <span class="line">ファンアート・ファンメイドコンテンツです / Fan-made content.</span>
+        <span class="line credit">制作者：@Ui7Z5</span>
+      </div>
+
+      <div class="deco-sticker s-archive">
+        <span class="top">FILED</span>
+        <span class="center">OK</span>
+        <span class="bottom">ARCHIVE</span>
+      </div>
+
+      <div class="corner-sticker">
+        <div class="l1">SAMPLE</div>
+        <div class="l2">###</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- トリミングモーダル -->
+<div class="crop-modal" id="cropModal">
+  <div class="crop-modal-inner">
+    <h2 id="cropTitle">画像をトリミング</h2>
+    <div class="crop-sub" id="cropSub">// drag to move / slider to zoom</div>
+    <div class="crop-help">画像をドラッグで位置調整、スライダーで拡大縮小できます。</div>
+    <div class="crop-stage" id="cropStage">
+      <img class="crop-img" id="cropImg" alt="">
+      <div class="crop-frame"></div>
+    </div>
+    <div class="crop-controls">
+      <label>ZOOM</label>
+      <input type="range" id="cropZoom" min="100" max="400" value="100" step="1">
+    </div>
+    <div class="crop-actions">
+      <button id="cropCancel">キャンセル</button>
+      <button id="cropApply" class="primary">この範囲で決定</button>
+    </div>
+  </div>
+</div>
+
+<div class="action-bar">
+  <button id="saveJson">Save JSON</button>
+  <button id="loadJsonBtn">Load JSON</button>
+  <input type="file" id="loadJson" accept=".json" style="display:none;">
+  <button id="resetBtn">Reset</button>
+  <button class="primary" id="exportPng">Export PNG</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const state = {
+  nameMain: "",
+  nameSub: "",
+  pointColor: "#6b8caf",
+  paperColor: "#e8ebef",
+  profile: { age: "", gender: "", job: "", body: "", race: "" },
+  mainImage: null,
+  subImage1: null,
+  subImage2: null,
+  rooms: [
+    { name: "", id: "", note: "" }
+  ],
+  trait: {
+    core: "",
+    groups: [
+      { title: "好き", items: [""] },
+      { title: "嫌い", items: [""] },
+      { title: "よくするポーズ", items: [""] }
+    ]
+  },
+  relationsVisible: true,
+  relations: []
+};
+
+const $ = (id) => document.getElementById(id);
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getLuminance(hex) {
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return 1;
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+// 紙の暗さ判定 → シート要素にだけ色変数を上書き
+function applyDarkPaperMode(paperHex) {
+  const sheet = $("sheet");
+  if (!sheet) return;
+  const lum = getLuminance(paperHex);
+  if (lum < 0.5) {
+    sheet.style.setProperty("--ink", "#f0eee5");
+    sheet.style.setProperty("--ink-soft", "#c8c4b8");
+    sheet.style.setProperty("--mute", "#9a9588");
+    sheet.style.setProperty("--line", "rgba(255,255,255,0.18)");
+    sheet.style.setProperty("--line-soft", "rgba(255,255,255,0.10)");
+    sheet.style.setProperty("--paper-soft", "rgba(255,255,255,0.05)");
+    sheet.style.setProperty("--grid-line", "rgba(255,255,255,0.06)");
+    sheet.style.setProperty("--grid-line-strong", "rgba(255,255,255,0.12)");
+    sheet.style.setProperty("--tape", "rgba(80,90,110,0.65)");
+    sheet.style.setProperty("--sticker-blue", "#4a5a78");
+    sheet.classList.add("dark-paper");
+  } else {
+    ["--ink","--ink-soft","--mute","--line","--line-soft","--paper-soft",
+     "--grid-line","--grid-line-strong","--tape","--sticker-blue"]
+      .forEach(p => sheet.style.removeProperty(p));
+    sheet.classList.remove("dark-paper");
+  }
+}
+
+// ポイントカラー上の文字色を自動判定（明るい色なら黒、暗い色なら白）
+function applyPointOnColor(pointHex) {
+  const sheet = $("sheet");
+  if (!sheet) return;
+  const lum = getLuminance(pointHex);
+  // 0.6 を境にする（中間色は白寄り）
+  if (lum > 0.6) {
+    sheet.style.setProperty("--point-on", "#1a1a1a");
+  } else {
+    sheet.style.setProperty("--point-on", "#ffffff");
+  }
+}
+
+function render() {
+  $("prevNameMain").textContent = state.nameMain || "名前";
+  $("prevNameSub").textContent = state.nameSub || "";
+  $("prevNameSub").style.display = state.nameSub ? "block" : "none";
+
+  document.documentElement.style.setProperty("--point", state.pointColor);
+  const sheetEl = $("sheet");
+  if (sheetEl) sheetEl.style.setProperty("--paper", state.paperColor);
+  applyDarkPaperMode(state.paperColor);
+  applyPointOnColor(state.pointColor);
+
+  const profEl = $("prevProfile");
+  profEl.innerHTML = "";
+  const profItems = [
+    ["年齢", state.profile.age],
+    ["性別", state.profile.gender],
+    ["職業", state.profile.job],
+    ["体型", state.profile.body],
+    ["種族", state.profile.race]
+  ];
+  let hasProfile = false;
+  profItems.forEach(([k, v]) => {
+    if (!v) return;
+    hasProfile = true;
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v;
+    profEl.appendChild(dt); profEl.appendChild(dd);
+  });
+  // 全部空なら、プレースホルダ的な表示
+  if (!hasProfile) {
+    const dt = document.createElement("dt"); dt.textContent = "—";
+    const dd = document.createElement("dd"); dd.textContent = "（未入力）";
+    dd.style.color = "var(--mute)";
+    profEl.appendChild(dt); profEl.appendChild(dd);
+  }
+
+  renderImage("prevMainImage", state.mainImage, "NO PORTRAIT");
+  renderImage("prevSubImage1", state.subImage1, "SUB 01");
+  renderImage("prevSubImage2", state.subImage2, "SUB 02");
+
+  const roomEl = $("prevRoomList");
+  roomEl.innerHTML = "";
+  let hasRoom = false;
+  state.rooms.forEach(r => {
+    if (!r.name && !r.id && !r.note) return;
+    hasRoom = true;
+    const d = document.createElement("div");
+    d.className = "room-item";
+    d.innerHTML = `
+      ${r.name ? `<div class="room-name">${escapeHtml(r.name)}</div>` : ""}
+      ${r.id ? `<div class="room-id">${escapeHtml(r.id)}</div>` : ""}
+      ${r.note ? `<div class="room-note">${escapeHtml(r.note)}</div>` : ""}
+    `;
+    roomEl.appendChild(d);
+  });
+  if (!hasRoom) {
+    const d = document.createElement("div");
+    d.className = "room-item";
+    d.innerHTML = `<div class="room-note" style="color:var(--mute);">（未入力）</div>`;
+    roomEl.appendChild(d);
+  }
+
+  $("prevTraitCore").textContent = state.trait.core || "";
+  $("prevTraitCore").style.display = state.trait.core ? "block" : "none";
+
+  const traitList = $("prevTraitList");
+  traitList.innerHTML = "";
+  state.trait.groups.forEach(g => {
+    const validItems = g.items.filter(item => item && item.trim());
+    if (!g.title.trim() && validItems.length === 0) return;
+    const wrap = document.createElement("div");
+    wrap.className = "trait-group";
+    let itemsHtml = "";
+    validItems.forEach(item => {
+      itemsHtml += `<div class="detail-item"><span>${escapeHtml(item).replace(/\n/g, "<br>")}</span></div>`;
+    });
+    wrap.innerHTML = `
+      ${g.title.trim() ? `<div class="trait-group-title">${escapeHtml(g.title)}</div>` : ""}
+      ${itemsHtml ? `<div class="trait-items-preview">${itemsHtml}</div>` : ""}
+    `;
+    traitList.appendChild(wrap);
+  });
+
+  $("relationSection").style.display = state.relationsVisible ? "block" : "none";
+
+  const relEl = $("prevRelationList");
+  relEl.innerHTML = "";
+  state.relations.forEach(r => {
+    const d = document.createElement("div");
+    d.className = "relation-item";
+    const iconHtml = r.icon
+      ? `<div class="relation-icon"><img src="${r.icon}"></div>`
+      : `<div class="relation-icon"><div class="icon-placeholder">NO IMG</div></div>`;
+    d.innerHTML = `
+      ${iconHtml}
+      <div class="relation-body">
+        <div class="relation-name">
+          ${escapeHtml(r.name || "")}
+          ${r.type ? `<span class="relation-type">${escapeHtml(r.type)}</span>` : ""}
+        </div>
+        ${r.memo ? `<div class="relation-memo">${escapeHtml(r.memo).replace(/\n/g, "<br>")}</div>` : ""}
+      </div>
+    `;
+    relEl.appendChild(d);
+  });
+
+  const btn = $("relationToggle");
+  if (state.relationsVisible) {
+    btn.textContent = "ON";
+    btn.classList.add("active");
+    btn.classList.remove("hidden-state");
+    $("relationBody").style.display = "block";
+  } else {
+    btn.textContent = "OFF ✕";
+    btn.classList.remove("active");
+    btn.classList.add("hidden-state");
+    $("relationBody").style.display = "none";
+  }
+}
+
+function renderImage(id, src, placeholder) {
+  const el = $(id);
+  if (src) {
+    el.innerHTML = `<img src="${src}">`;
+  } else {
+    el.innerHTML = `<span class="placeholder">${placeholder}</span>`;
+  }
+}
+
+/* ===========================================
+ * トリミングモーダル
+ * =========================================== */
+const cropper = {
+  imgEl: null,
+  stageEl: null,
+  zoomEl: null,
+  natW: 0, natH: 0,
+  stageW: 0, stageH: 0,
+  scale: 1,
+  minScale: 1,
+  posX: 0, posY: 0,
+  dragging: false,
+  startMouseX: 0, startMouseY: 0,
+  startPosX: 0, startPosY: 0,
+  shape: "circle",        // circle / rect34 / square
+  outputType: "png",
+  callback: null,
+
+  open(file, shape, callback) {
+    this.shape = shape;
+    this.callback = callback;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      this.setupModal(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  },
+
+  setupModal(dataUrl) {
+    const modal = $("cropModal");
+    const stage = $("cropStage");
+    const img = $("cropImg");
+    this.stageEl = stage;
+    this.imgEl = img;
+    this.zoomEl = $("cropZoom");
+
+    // ステージの形状クラス
+    stage.classList.remove("shape-rect34", "shape-circle", "shape-square");
+    if (this.shape === "rect34") stage.classList.add("shape-rect34");
+    else if (this.shape === "circle") stage.classList.add("shape-circle");
+    else stage.classList.add("shape-square");
+
+    img.src = dataUrl;
+    img.onload = () => {
+      this.natW = img.naturalWidth;
+      this.natH = img.naturalHeight;
+      const rect = stage.getBoundingClientRect();
+      this.stageW = rect.width;
+      this.stageH = rect.height;
+
+      // 初期：枠を埋める最小スケール
+      const sx = this.stageW / this.natW;
+      const sy = this.stageH / this.natH;
+      this.minScale = Math.max(sx, sy);
+      this.scale = this.minScale;
+      this.zoomEl.min = 100;
+      this.zoomEl.max = 400;
+      this.zoomEl.value = 100;
+
+      // 中央に配置
+      this.posX = (this.stageW - this.natW * this.scale) / 2;
+      this.posY = (this.stageH - this.natH * this.scale) / 2;
+      this.applyTransform();
+    };
+
+    modal.classList.add("show");
+  },
+
+  applyTransform() {
+    this.constrainPos();
+    this.imgEl.style.transform =
+      `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
+  },
+
+  constrainPos() {
+    const dispW = this.natW * this.scale;
+    const dispH = this.natH * this.scale;
+    const minX = this.stageW - dispW;
+    const minY = this.stageH - dispH;
+    if (this.posX > 0) this.posX = 0;
+    if (this.posY > 0) this.posY = 0;
+    if (this.posX < minX) this.posX = minX;
+    if (this.posY < minY) this.posY = minY;
+  },
+
+  bindEvents() {
+    const stage = $("cropStage");
+    const onDown = (e) => {
+      this.dragging = true;
+      const p = e.touches ? e.touches[0] : e;
+      this.startMouseX = p.clientX;
+      this.startMouseY = p.clientY;
+      this.startPosX = this.posX;
+      this.startPosY = this.posY;
+      e.preventDefault();
+    };
+    const onMove = (e) => {
+      if (!this.dragging) return;
+      const p = e.touches ? e.touches[0] : e;
+      this.posX = this.startPosX + (p.clientX - this.startMouseX);
+      this.posY = this.startPosY + (p.clientY - this.startMouseY);
+      this.applyTransform();
+      e.preventDefault();
+    };
+    const onUp = () => { this.dragging = false; };
+
+    stage.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    stage.addEventListener("touchstart", onDown, { passive: false });
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+
+    $("cropZoom").addEventListener("input", (e) => {
+      const ratio = +e.target.value / 100;
+      const newScale = this.minScale * ratio;
+      // 中心点を維持してスケーリング
+      const cx = this.stageW / 2;
+      const cy = this.stageH / 2;
+      const px = (cx - this.posX) / this.scale;
+      const py = (cy - this.posY) / this.scale;
+      this.scale = newScale;
+      this.posX = cx - px * this.scale;
+      this.posY = cy - py * this.scale;
+      this.applyTransform();
+    });
+
+    $("cropCancel").addEventListener("click", () => this.close());
+    $("cropApply").addEventListener("click", () => this.apply());
+  },
+
+  apply() {
+    // ステージサイズに合わせて、書き出すcanvasを作る
+    let outW, outH;
+    if (this.shape === "rect34") { outW = 600; outH = 800; }
+    else { outW = 600; outH = 600; }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+
+    // ステージ→出力の比率
+    const rx = outW / this.stageW;
+    const ry = outH / this.stageH;
+
+    // imgの描画開始位置（出力座標系）
+    const drawX = this.posX * rx;
+    const drawY = this.posY * ry;
+    const drawW = this.natW * this.scale * rx;
+    const drawH = this.natH * this.scale * ry;
+
+    ctx.drawImage(this.imgEl, drawX, drawY, drawW, drawH);
+
+    const dataUrl = canvas.toDataURL("image/png");
+    this.close();
+    if (this.callback) this.callback(dataUrl);
+  },
+
+  close() {
+    $("cropModal").classList.remove("show");
+    this.imgEl.src = "";
+    this.dragging = false;
+  }
+};
+cropper.bindEvents();
+
+/* ===========================================
+ * パネルコントロール
+ * =========================================== */
+function renderTraitControls() {
+  const box = $("traitList");
+  box.innerHTML = "";
+  state.trait.groups.forEach((g, gi) => {
+    const wrap = document.createElement("div");
+    wrap.className = "trait-wrap";
+    wrap.innerHTML = `
+      <div class="trait-head">
+        <input type="text" value="${escapeHtml(g.title)}" data-gi="${gi}" class="trait-title-inp" placeholder="カテゴリ名（例：好き）">
+        <button class="remove-btn" data-gi="${gi}" title="カテゴリごと削除">×</button>
+      </div>
+      <div class="trait-items" data-gi="${gi}"></div>
+      <button class="add-btn add-trait-item" data-gi="${gi}" style="margin-top:4px;">+ 項目追加</button>
+    `;
+    box.appendChild(wrap);
+    const itemsBox = wrap.querySelector(".trait-items");
+    g.items.forEach((item, ii) => {
+      const row = document.createElement("div");
+      row.className = "list-item";
+      row.innerHTML = `
+        <textarea data-gi="${gi}" data-ii="${ii}" class="trait-item-inp" placeholder="項目">${escapeHtml(item)}</textarea>
+        <button class="remove-btn trait-item-remove" data-gi="${gi}" data-ii="${ii}">×</button>
+      `;
+      itemsBox.appendChild(row);
+    });
+  });
+
+  box.querySelectorAll(".trait-title-inp").forEach(el => {
+    el.addEventListener("input", e => {
+      state.trait.groups[+e.target.dataset.gi].title = e.target.value;
+      render();
+    });
+  });
+  box.querySelectorAll(".trait-item-inp").forEach(el => {
+    el.addEventListener("input", e => {
+      state.trait.groups[+e.target.dataset.gi].items[+e.target.dataset.ii] = e.target.value;
+      render();
+    });
+  });
+  box.querySelectorAll(".trait-item-remove").forEach(el => {
+    el.addEventListener("click", e => {
+      const gi = +e.target.dataset.gi;
+      const ii = +e.target.dataset.ii;
+      state.trait.groups[gi].items.splice(ii, 1);
+      renderTraitControls();
+      render();
+    });
+  });
+  box.querySelectorAll(".trait-wrap > .trait-head .remove-btn").forEach(el => {
+    el.addEventListener("click", e => {
+      if (!confirm("このカテゴリごと削除しますか？")) return;
+      state.trait.groups.splice(+e.target.dataset.gi, 1);
+      renderTraitControls();
+      render();
+    });
+  });
+  box.querySelectorAll(".add-trait-item").forEach(el => {
+    el.addEventListener("click", e => {
+      state.trait.groups[+e.target.dataset.gi].items.push("");
+      renderTraitControls();
+      render();
+    });
+  });
+}
+
+function renderRoomControls() {
+  const box = $("roomList");
+  box.innerHTML = "";
+  state.rooms.forEach((r, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "room-wrap";
+    wrap.innerHTML = `
+      <div class="room-top-row">
+        <input type="text" value="${escapeHtml(r.name)}" data-idx="${i}" class="room-name-inp" placeholder="ROOM名">
+        <button class="remove-btn" data-idx="${i}">×</button>
+      </div>
+      <input type="text" value="${escapeHtml(r.id)}" data-idx="${i}" class="room-id-input room-id-inp" placeholder="ルームID">
+      <input type="text" value="${escapeHtml(r.note)}" data-idx="${i}" class="room-note-inp" placeholder="メモ（任意）" style="margin-bottom:0;">
+    `;
+    box.appendChild(wrap);
+  });
+  box.querySelectorAll(".room-name-inp").forEach(el => {
+    el.addEventListener("input", e => { state.rooms[+e.target.dataset.idx].name = e.target.value; render(); });
+  });
+  box.querySelectorAll(".room-id-inp").forEach(el => {
+    el.addEventListener("input", e => { state.rooms[+e.target.dataset.idx].id = e.target.value; render(); });
+  });
+  box.querySelectorAll(".room-note-inp").forEach(el => {
+    el.addEventListener("input", e => { state.rooms[+e.target.dataset.idx].note = e.target.value; render(); });
+  });
+  box.querySelectorAll(".remove-btn").forEach(el => {
+    el.addEventListener("click", e => {
+      state.rooms.splice(+e.target.dataset.idx, 1);
+      renderRoomControls();
+      render();
+    });
+  });
+}
+
+function renderRelationControls() {
+  const box = $("relationList");
+  box.innerHTML = "";
+  state.relations.forEach((r, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "rel-wrap";
+    const iconImgHtml = r.icon
+      ? `<img src="${r.icon}">`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ui-mute);font-size:9px;font-family:'DM Mono',monospace;">N/A</div>`;
+    wrap.innerHTML = `
+      <div class="rel-row1">
+        <input type="text" value="${escapeHtml(r.name)}" data-idx="${i}" class="rel-name-inp" placeholder="キャラ名">
+        <input type="text" value="${escapeHtml(r.type)}" data-idx="${i}" class="rel-type-inp" placeholder="同室者など">
+        <button class="remove-btn" data-idx="${i}">×</button>
+      </div>
+      <textarea data-idx="${i}" class="rel-memo-inp" placeholder="関係性のメモ">${escapeHtml(r.memo)}</textarea>
+      <div class="rel-icon-row">
+        <div class="icon-preview">${iconImgHtml}</div>
+        <button type="button" class="icon-upload-btn" data-idx="${i}">アイコン画像（円形・任意）</button>
+        <input type="file" accept="image/*" class="rel-icon-input" data-idx="${i}" style="display:none;">
+      </div>
+    `;
+    box.appendChild(wrap);
+  });
+  box.querySelectorAll(".rel-name-inp").forEach(el => {
+    el.addEventListener("input", e => { state.relations[+e.target.dataset.idx].name = e.target.value; render(); });
+  });
+  box.querySelectorAll(".rel-type-inp").forEach(el => {
+    el.addEventListener("input", e => { state.relations[+e.target.dataset.idx].type = e.target.value; render(); });
+  });
+  box.querySelectorAll(".rel-memo-inp").forEach(el => {
+    el.addEventListener("input", e => { state.relations[+e.target.dataset.idx].memo = e.target.value; render(); });
+  });
+  box.querySelectorAll(".rel-wrap > .rel-row1 .remove-btn").forEach(el => {
+    el.addEventListener("click", e => {
+      state.relations.splice(+e.target.dataset.idx, 1);
+      renderRelationControls();
+      render();
+    });
+  });
+  // アイコンアップロード
+  box.querySelectorAll(".icon-upload-btn").forEach(el => {
+    el.addEventListener("click", e => {
+      const idx = +e.target.dataset.idx;
+      const fileInput = box.querySelector(`.rel-icon-input[data-idx="${idx}"]`);
+      fileInput.click();
+    });
+  });
+  box.querySelectorAll(".rel-icon-input").forEach(el => {
+    el.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const idx = +e.target.dataset.idx;
+      cropper.open(file, "circle", (dataUrl) => {
+        state.relations[idx].icon = dataUrl;
+        renderRelationControls();
+        render();
+      });
+    });
+  });
+}
+
+function bindBasics() {
+  $("nameMain").addEventListener("input", e => { state.nameMain = e.target.value; render(); });
+  $("nameSub").addEventListener("input", e => { state.nameSub = e.target.value; render(); });
+
+  const pc = $("pointColor"), pct = $("pointColorText");
+  pc.addEventListener("input", e => { state.pointColor = e.target.value; pct.value = e.target.value.toUpperCase(); render(); });
+  pct.addEventListener("input", e => { state.pointColor = e.target.value; pc.value = e.target.value; render(); });
+
+  const ppc = $("paperColor"), ppct = $("paperColorText");
+  ppc.addEventListener("input", e => { state.paperColor = e.target.value; ppct.value = e.target.value.toUpperCase(); render(); });
+  ppct.addEventListener("input", e => { state.paperColor = e.target.value; ppc.value = e.target.value; render(); });
+
+  ["age", "gender", "job", "body", "race"].forEach(k => {
+    $("prof" + k.charAt(0).toUpperCase() + k.slice(1)).addEventListener("input", e => {
+      state.profile[k] = e.target.value; render();
+    });
+  });
+
+  $("traitCore").addEventListener("input", e => { state.trait.core = e.target.value; render(); });
+
+  // 画像アップロード（トリミングつき）
+  bindImageCropInput("mainImageBtn", "mainImageInput", "mainImageText", "rect34", "mainImage");
+  bindImageCropInput("subImage1Btn", "subImage1Input", "subImage1Text", "square", "subImage1");
+  bindImageCropInput("subImage2Btn", "subImage2Input", "subImage2Text", "square", "subImage2");
+
+  $("addTraitGroup").addEventListener("click", () => {
+    state.trait.groups.push({ title: "", items: [""] });
+    renderTraitControls(); render();
+  });
+  $("addRoom").addEventListener("click", () => {
+    state.rooms.push({ name: "", id: "", note: "" });
+    renderRoomControls(); render();
+  });
+  $("addRelation").addEventListener("click", () => {
+    state.relations.push({ name: "", type: "", memo: "", icon: null });
+    renderRelationControls(); render();
+  });
+
+  $("relationToggle").addEventListener("click", () => {
+    state.relationsVisible = !state.relationsVisible;
+    render();
+  });
+}
+
+function bindImageCropInput(btnId, inputId, textId, shape, stateKey) {
+  $(btnId).addEventListener("click", (e) => {
+    e.preventDefault();
+    $(inputId).click();
+  });
+  $(inputId).addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    cropper.open(file, shape, (dataUrl) => {
+      state[stateKey] = dataUrl;
+      $(textId).textContent = "画像設定済み（クリックで変更）";
+      render();
+    });
+    // 同じファイルを再選択できるように
+    e.target.value = "";
+  });
+}
+
+$("exportPng").addEventListener("click", async () => {
+  toast("Exporting…");
+  const sheet = $("sheet");
+  try {
+    const canvas = await html2canvas(sheet, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: null,
+      logging: false
+    });
+    const link = document.createElement("a");
+    link.download = `gogh_${(state.nameMain || "avatar").replace(/[^\w]/g, "_") || "sheet"}_${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    toast("Exported");
+  } catch (err) {
+    console.error(err);
+    toast("Export error");
+  }
+});
+
+$("saveJson").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.download = `gogh_${(state.nameMain || "avatar").replace(/[^\w]/g, "_") || "sheet"}.json`;
+  link.href = url;
+  link.click();
+  URL.revokeObjectURL(url);
+  toast("Saved");
+});
+
+$("loadJsonBtn").addEventListener("click", () => $("loadJson").click());
+$("loadJson").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      Object.assign(state, data);
+      if (!state.trait || !state.trait.groups) {
+        state.trait = { core: "", groups: [] };
+      }
+      if (typeof state.relationsVisible !== "boolean") state.relationsVisible = true;
+      if (typeof state.nameMain !== "string") state.nameMain = state.nameEn || state.name || "";
+      if (typeof state.nameSub !== "string") state.nameSub = state.nameJp || "";
+      if (typeof state.paperColor !== "string") state.paperColor = "#e8ebef";
+      // relationsの旧データに icon プロパティが無ければ追加
+      (state.relations || []).forEach(r => { if (!("icon" in r)) r.icon = null; });
+      syncControls();
+      render();
+      toast("Loaded");
+    } catch (err) {
+      console.error(err);
+      toast("Load error");
+    }
+  };
+  reader.readAsText(file);
+});
+
+$("resetBtn").addEventListener("click", () => {
+  if (!confirm("全項目を空にリセットしますか？")) return;
+  Object.assign(state, {
+    nameMain: "", nameSub: "",
+    pointColor: "#6b8caf",
+    paperColor: "#e8ebef",
+    profile: { age: "", gender: "", job: "", body: "", race: "" },
+    mainImage: null, subImage1: null, subImage2: null,
+    rooms: [{ name: "", id: "", note: "" }],
+    trait: {
+      core: "",
+      groups: [
+        { title: "好き", items: [""] },
+        { title: "嫌い", items: [""] },
+        { title: "よくするポーズ", items: [""] }
+      ]
+    },
+    relationsVisible: true,
+    relations: []
+  });
+  $("mainImageText").textContent = "クリックしてアップロード";
+  $("subImage1Text").textContent = "クリックしてアップロード";
+  $("subImage2Text").textContent = "クリックしてアップロード";
+  syncControls(); render();
+  toast("Reset");
+});
+
+function syncControls() {
+  $("nameMain").value = state.nameMain || "";
+  $("nameSub").value = state.nameSub || "";
+  $("pointColor").value = state.pointColor;
+  $("pointColorText").value = state.pointColor.toUpperCase();
+  $("paperColor").value = state.paperColor;
+  $("paperColorText").value = state.paperColor.toUpperCase();
+  $("profAge").value = state.profile.age;
+  $("profGender").value = state.profile.gender;
+  $("profJob").value = state.profile.job;
+  $("profBody").value = state.profile.body;
+  $("profRace").value = state.profile.race;
+  $("traitCore").value = state.trait.core;
+  if (state.mainImage) $("mainImageText").textContent = "画像設定済み（クリックで変更）";
+  if (state.subImage1) $("subImage1Text").textContent = "画像設定済み（クリックで変更）";
+  if (state.subImage2) $("subImage2Text").textContent = "画像設定済み（クリックで変更）";
+  renderTraitControls();
+  renderRoomControls();
+  renderRelationControls();
+}
+
+syncControls();
+bindBasics();
+render();
+</script>
+</body>
+</html>
